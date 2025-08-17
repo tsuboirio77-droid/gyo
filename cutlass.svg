@@ -1,0 +1,6 @@
+<svg width="120" height="20" viewBox="-60 -10 120 20" xmlns="http://www.w3.org/2000/svg">
+  <g fill="rgba(200, 200, 200, 0.6)" transform="scale(-1, 1)">
+    <path d="M 40 0 C 0 5, -30 3, -50 0 C -30 -3, 0 -5, 40 0 Z" />
+    <path d="M -50 0 L -60 3 L -60 -3 Z" />
+  </g>
+</svg>
