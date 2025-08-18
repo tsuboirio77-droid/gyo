@@ -5,7 +5,9 @@ const ASSET_PATHS = {
     CUTLASS: 'cutlass.svg',
     SHARK:   'shark.svg',
     MARLIN:  'marlin.svg',
-    WHALE:   'whale.svg'
+    WHALE:   'whale.svg',
+    RAY:     'ray.svg',
+    TUNA:    'tuna.svg' // この行を追加
 };
 
 function loadAssets() {
