@@ -1,13 +1,13 @@
 const ASSET_PATHS = {
-    SMALL:   'small_fish.svg',
-    MEDIUM:  'medium_fish.svg',
-    LARGE:   'large_fish.svg',
+    SARDINE: 'small_fish.svg',
+    MACKEREL:'medium_fish.svg',
+    BONITO:  'large_fish.svg',
     CUTLASS: 'cutlass.svg',
     SHARK:   'shark.svg',
     MARLIN:  'marlin.svg',
     WHALE:   'whale.svg',
     RAY:     'ray.svg',
-    TUNA:    'tuna.svg' // この行を追加
+    TUNA:    'tuna.svg'
 };
 
 function loadAssets() {
