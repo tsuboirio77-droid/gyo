@@ -1,3 +1,5 @@
+// FILE: asset_loader.js
+
 const ASSET_PATHS = {
     SARDINE: 'small_fish.svg',
     MACKEREL:'medium_fish.svg',
@@ -18,6 +20,7 @@ function loadAssets() {
         const promise = new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = () => {
+                // ★修正点：ぼかし処理をなくし、元のImageオブジェクトをそのまま保存
                 images[key] = img;
                 resolve();
             };

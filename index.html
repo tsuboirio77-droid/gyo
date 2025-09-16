@@ -5,100 +5,148 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Boids with Food</title>
     <style>
-        html, body { margin: 0; padding: 0; overflow: hidden; background-color: #000; }
-        canvas { display: block; }
-        #controls { display: none; position: fixed; top: 10px; left: 10px; background-color: rgba(0, 0, 0, 0.75); color: #eee; padding: 10px; border-radius: 8px; font-family: Arial, sans-serif; font-size: 12px; max-height: calc(100vh - 20px); overflow-y: auto; border: 1px solid #0af; width: 280px; }
-        #controls.visible { display: block; }
-        .control-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 0 5px; }
-        .control-header h3 { margin: 0; color: #0af; }
-        #toggle-btn { background: none; border: 1px solid #0af; color: #0af; cursor: pointer; border-radius: 3px; padding: 2px 6px; }
-        #control-content { padding-top: 10px; border-top: 1px solid #0af; margin-top: 10px; }
-        .collapsible-header { background-color: rgba(0, 100, 150, 0.3); padding: 5px; margin: 8px 0 5px; cursor: pointer; border-radius: 3px; }
-        .collapsible-content { padding-left: 10px; max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
-        .collapsible-content.expanded { max-height: 1000px; }
-        .fish-settings div { display: grid; grid-template-columns: 120px 80px; gap: 5px; margin-bottom: 5px; align-items: center; }
-        .fish-settings label { text-align: right; padding-right: 10px; }
-        .fish-settings input { width: 100%; box-sizing: border-box; background-color: #333; color: #fff; border: 1px solid #555; border-radius: 3px; padding: 2px; }
-        .control-buttons { display: flex; gap: 10px; margin-top: 15px; }
-        .control-buttons button { flex-grow: 1; padding: 8px 12px; background-color: #0af; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .control-buttons button:hover { background-color: #08d; }
+        html, body { 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; 
+            background-color: #000; 
+            font-family: 'Segoe UI', 'Meiryo UI', 'Yu Gothic UI', 'Hiragino Kaku Gothic ProN', sans-serif;
+        }
+        canvas { 
+            display: block; 
+        }
+
+        /* --- Glassmorphism UI Base --- */
+        .glass-panel {
+            position: fixed;
+            background: rgba(10, 25, 40, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 170, 255, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+            color: #e0faff;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
+        }
+
+        .glass-panel.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        
+        /* --- Info Panel (Top Left) --- */
+        #info-panel {
+            top: 15px;
+            left: 15px;
+            width: 280px;
+            padding: 12px;
+            font-size: 11px;
+            max-height: calc(100vh - 30px);
+            overflow-y: auto;
+        }
+
+        #info-panel h3 {
+            margin: 0 0 10px 0;
+            color: #0af;
+            font-weight: 600;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(0, 170, 255, 0.2);
+            padding-bottom: 8px;
+        }
+        
+        .info-category {
+            margin-bottom: 12px;
+        }
+
+        .info-category h4 {
+            margin: 0 0 6px 0;
+            color: #7df;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 130px 1fr;
+            gap: 3px 6px;
+        }
+
+        .info-grid-item-label {
+            text-align: right;
+            color: #9cf;
+            opacity: 0.8;
+        }
+        
+        .info-grid-item-value {
+            font-weight: 600;
+        }
+
+        /* --- Population Panel (Bottom Right) --- */
+        #population-panel {
+            bottom: 15px;
+            right: 15px; 
+            padding: 8px 12px;
+            font-family: monospace;
+            font-size: 11px;
+            transform: translateY(0);
+        }
+
+        #population-panel table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        #population-panel th, #population-panel td {
+            text-align: left;
+            padding: 2px 4px;
+        }
+        #population-panel th {
+            color: #0af;
+            border-bottom: 1px solid rgba(0, 170, 255, 0.2);
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
     <canvas id="boidsCanvas"></canvas>
-    <div id="controls">
-        <div class="control-header" id="control-header">
-            <h3>Simulation Controls</h3>
-            <button id="toggle-btn">Hide</button>
+
+    <div id="info-panel" class="glass-panel">
+        <h3>シミュレーション情報</h3>
+        
+        <div class="info-category">
+            <h4>グローバル設定</h4>
+            <div id="global-status" class="info-grid"></div>
         </div>
-        <div id="control-content">
-            <div class="collapsible-header">Global Settings</div>
-            <div class="collapsible-content fish-settings">
-                <div><label for="predator-leave-percent">Predator Leave %:</label><input type="number" id="predator-leave-percent"></div>
-            </div>
 
-            <div class="collapsible-header">SARDINE (Small)</div>
-            <div class="collapsible-content fish-settings">
-                <div><label for="sardine-count">Count:</label><input type="number" id="sardine-count"></div>
-                <div><label for="sardine-maxSpeed">Max Speed:</label><input type="number" step="0.1" id="sardine-maxSpeed"></div>
-                <div><label for="sardine-reproCost">Repro. Cost:</label><input type="number" id="sardine-reproCost"></div>
-            </div>
-            
-            <div class="collapsible-header">MACKEREL (Medium)</div>
-            <div class="collapsible-content fish-settings">
-                <div><label for="mackerel-count">Count:</label><input type="number" id="mackerel-count"></div>
-                <div><label for="mackerel-maxSpeed">Max Speed:</label><input type="number" step="0.1" id="mackerel-maxSpeed"></div>
-                <div><label for="mackerel-reproCost">Repro. Cost:</label><input type="number" id="mackerel-reproCost"></div>
-            </div>
-            
-            <div class="collapsible-header">BONITO (Large)</div>
-            <div class="collapsible-content fish-settings">
-                <div><label for="bonito-count">Count:</label><input type="number" id="bonito-count"></div>
-                <div><label for="bonito-maxSpeed">Max Speed:</label><input type="number" step="0.1" id="bonito-maxSpeed"></div>
-                <div><label for="bonito-reproCost">Repro. Cost:</label><input type="number" id="bonito-reproCost"></div>
-                <div><label for="bonito-eatCooldown">Eat Cooldown:</label><input type="number" id="bonito-eatCooldown"></div>
-            </div>
+        <div class="info-category">
+            <h4>被食者</h4>
+            <div id="prey-status" class="info-grid"></div>
+        </div>
 
-            <div class="collapsible-header">CUTLASS</div>
-            <div class="collapsible-content fish-settings">
-                <div><label for="cutlass-count">Count:</label><input type="number" id="cutlass-count"></div>
-                <div><label for="cutlass-maxSpeed">Max Speed:</label><input type="number" step="0.1" id="cutlass-maxSpeed"></div>
-                <div><label for="cutlass-reproCost">Repro. Cost:</label><input type="number" id="cutlass-reproCost"></div>
-                <div><label for="cutlass-eatCooldown">Eat Cooldown:</label><input type="number" id="cutlass-eatCooldown"></div>
-                <div><label for="cutlass-fleeMultiplier">Flee Multiplier:</label><input type="number" step="0.1" id="cutlass-fleeMultiplier"></div>
-            </div>
-            <hr>
-            <div class="collapsible-header">Predators</div>
-            <div class="collapsible-content fish-settings">
-                <h4>SHARK</h4>
-                <div><label for="shark-maxSpeed">Max Speed:</label><input type="number" step="0.1" id="shark-maxSpeed"></div>
-                <div><label for="shark-maxCount">Max Count:</label><input type="number" id="shark-maxCount"></div>
-                <div><label for="shark-turnFactor">Turn Factor:</label><input type="number" step="0.05" id="shark-turnFactor"></div>
-                <div><label for="shark-seekRange">Seek Range:</label><input type="number" id="shark-seekRange"></div>
-                <h4>MARLIN</h4>
-                <div><label for="marlin-maxSpeed">Max Speed:</label><input type="number" step="0.1" id="marlin-maxSpeed"></div>
-                <div><label for="marlin-maxCount">Max Count:</label><input type="number" id="marlin-maxCount"></div>
-                <div><label for="marlin-turnFactor">Turn Factor:</label><input type="number" step="0.05" id="marlin-turnFactor"></div>
-                <div><label for="marlin-seekRange">Seek Range:</label><input type="number" id="marlin-seekRange"></div>
-                <h4>TUNA</h4>
-                <div><label for="tuna-maxSpeed">Max Speed:</label><input type="number" step="0.1" id="tuna-maxSpeed"></div>
-                <div><label for="tuna-maxCount">Max Count:</label><input type="number" id="tuna-maxCount"></div>
-                <div><label for="tuna-turnFactor">Turn Factor:</label><input type="number" step="0.05" id="tuna-turnFactor"></div>
-                 <div><label for="tuna-minSpeedMultiplier">Min Speed %:</label><input type="number" step="0.1" id="tuna-minSpeedMultiplier"></div>
-                 <div><label for="tuna-seekRange">Seek Range:</label><input type="number" id="tuna-seekRange"></div>
-                <h4>RAY</h4>
-                <div><label for="ray-maxSpeed">Max Speed:</label><input type="number" step="0.1" id="ray-maxSpeed"></div>
-                <div><label for="ray-maxCount">Max Count:</label><input type="number" id="ray-maxCount"></div>
-                <div><label for="ray-turnFactor">Turn Factor:</label><input type="number" step="0.05" id="ray-turnFactor"></div>
-                <div><label for="ray-seekRange">Seek Range:</label><input type="number" id="ray-seekRange"></div>
-            </div>
-            <div class="control-buttons">
-                <button id="applyBtn">Apply & Reset</button>
-                <button id="copyBtn">Copy Config</button>
-            </div>
+        <div class="info-category">
+            <h4>捕食者</h4>
+            <div id="predator-status" class="info-grid"></div>
         </div>
     </div>
+
+    <div id="population-panel" class="glass-panel">
+        <table id="population-table"></table>
+    </div>
+
     <script src="asset_loader.js"></script>
-    <script src="boids.js"></script>
+
+    <!-- 分割したJSファイル (この順番で読み込む) -->
+    <script src="utils.js"></script>
+    <script src="config.js"></script>
+    <script src="entity_base.js"></script>
+    <script src="prey_entities.js"></script>
+    <script src="predator_entities.js"></script>
+    <script src="effect_entities.js"></script>
+    <script src="flock.js"></script>
+    
+    <script src="main.js"></script>
 </body>
 </html>
