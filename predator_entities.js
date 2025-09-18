@@ -8,15 +8,19 @@ class Marlin extends Predator {
         this.eatAfterStunTimer = 0;
     }
 
-    // ★★★★★★★★★★★★★★★★★★★★★★★★★
-    // 修正点：スタン先端位置の計算を「口の位置からさらに前方」に修正
-    // ★★★★★★★★★★★★★★★★★★★★★★★★★
+    // スタン判定の先端位置を修正
     getBillTipPosition() {
-        if (this.velocity.magnitude() === 0) return this.getMouthPosition();
+        if (this.velocity.magnitude() === 0) return this.position; // 速度がない場合はボイドの中心
+        
         const dir = this.velocity.normalize();
-        const mouthPos = this.getMouthPosition();
-        const offset = this.config.width * (this.config.billTipOffset || 0.5);
-        return mouthPos.add(dir.multiply(offset));
+        
+        // 画像の中心 (this.position) から、口先までの全体オフセットを計算
+        // config.mouthOffset は中心からの口の位置の比率 (this.config.widthに対する)
+        // config.billTipOffset は口からビルの先端までの比率 (this.config.widthに対する)
+        const totalForwardOffset = this.config.width * (this.config.mouthOffset || 0.3) + 
+                                   this.config.width * (this.config.billTipOffset || 0.2); 
+        
+        return this.position.add(dir.multiply(totalForwardOffset));
     }
 
     act(qtree, allPrey, allPredators, currentCounts) {
@@ -102,30 +106,30 @@ class Marlin extends Predator {
         }
     }
 
-    // ★★★★★★★★★★★★★★★★★★★★★★★★★
-    // 修正点：独自のdraw()メソッドを削除し、親クラスの共通描画に任せる
-    // 発光エフェクトのみdrawEffects()で描画
-    // ★★★★★★★★★★★★★★★★★★★★★★★★★
+    // スタン発光エフェクトの描画位置を修正
     drawEffects(ctx) {
         if (this.stunGlowTimer > 0) {
             const alpha = Math.sin((this.stunGlowTimer / 20) * Math.PI);
             
-            // 口の位置から先端までの距離を計算
-            const tipOffset = this.config.width * this.config.mouthOffset + this.config.width * (this.config.billTipOffset || 0.5);
+            // getBillTipPosition() が返すワールド座標と、現在のボイドのワールド座標の差分
+            const billTipWorldPos = this.getBillTipPosition();
+            const diffFromBoidCenter = billTipWorldPos.subtract(this.position);
             
-            // 画像の中心からのオフセットなので、画像の中心から口までの距離をまず計算
-            const mouthOffsetDistance = this.config.width * (this.config.mouthOffset - 0.5);
-            // そこからさらに先端までの距離を加算
-            const tipOffsetDistance = mouthOffsetDistance + this.config.width * (this.config.billTipOffset || 0.5);
-
-            const tipX = -tipOffsetDistance; // 180度回転しているので進行方向はマイナス
-            const tipY = 0;
-
+            // 現在の回転を考慮して、この差分をローカル座標に変換
+            // Boidクラスのdraw()で ctx.rotate(this.velocity.heading() + Math.PI) されているため、
+            // 進行方向はローカルX軸の正方向、後方が負方向。
+            // したがって、diffFromBoidCenter を逆回転 ( -(heading + PI) ) させることで、
+            // ローカル座標系での位置が求まります。
+            const currentHeading = this.velocity.heading();
+            const rotationAngle = -(currentHeading + Math.PI); // draw()で適用された回転の逆回転
+            const effectLocalPos = diffFromBoidCenter.rotate(rotationAngle);
+            
             ctx.save();
             ctx.filter = `blur(6px)`;
             ctx.fillStyle = `rgba(255, 255, 0, ${alpha * 0.8})`;
             ctx.beginPath();
-            ctx.arc(tipX, tipY, 8, 0, Math.PI * 2);
+            // effectLocalPos を直接使う
+            ctx.arc(effectLocalPos.x, effectLocalPos.y, 8, 0, Math.PI * 2); 
             ctx.fill();
             ctx.restore();
         }
@@ -169,7 +173,7 @@ class Tuna extends Predator {
         this.velocity = targetPosition.subtract(this.position).normalize().multiply(this.config.maxSpeed);
     }
     findLongRangePrey(qtree, preyList, allPredators, currentCounts) {
-        const availablePrey = preyList.filter(p => p.alpha > 0 && !p.isDying && this.config.eats.includes(p.type));
+        const availablePrey = preyList.filter(p => p.alpha > 0 && !p.isDying && this.config.eats.includes(p.type) && p.type !== 'WHALE');
         if (availablePrey.length === 0) return null;
         
         const isOverpopulated = (prey) => (currentCounts[prey.type] || 0) > (flock.initialCounts[prey.type] || 0) + CONFIG.OVERPOPULATION_COUNT;
