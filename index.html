@@ -3,8 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boids with Food</title>
+    <title>Marine Boid Simulation</title>
+    
+    <link rel="icon" href="mbs_icon.svg" type="image/svg+xml">
+
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+    <link rel="icon" href="favicon.ico" sizes="any">
+    
     <style>
+        /* --- Custom Fonts --- */
+        @font-face {
+            font-family: 'CuteFont';
+            src: url('CuteFont-Regular.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'BigShoulders';
+            src: url('BigShouldersInline-Bold.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'AveriaSerif';
+            src: url('AveriaSerifLibre-Regular.ttf') format('truetype');
+        }
+
         html, body { 
             margin: 0; 
             padding: 0; 
@@ -85,9 +106,9 @@
             font-weight: 600;
         }
 
-        /* --- Population Panel (Bottom Right) --- */
+        /* --- Population Panel (Top Right) --- */
         #population-panel {
-            bottom: 15px;
+            top: 15px;
             right: 15px; 
             padding: 8px 12px;
             font-family: monospace;
@@ -107,6 +128,31 @@
             color: #0af;
             border-bottom: 1px solid rgba(0, 170, 255, 0.2);
             font-size: 12px;
+        }
+        
+        /* --- Clock (Bottom Right) --- */
+        #clock-container {
+            position: fixed;
+            right: 20px;
+            color: #00aaff;
+            opacity: 0.2;
+            pointer-events: none;
+            z-index: 10;
+
+            /* ★Flexbox for perfect right alignment */
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        
+        #date-display {
+            /* Styles controlled by JS */
+        }
+
+        #time-display {
+            font-weight: bold;
+            letter-spacing: 4px;
+            /* Font size controlled by JS */
         }
     </style>
 </head>
@@ -136,9 +182,12 @@
         <table id="population-table"></table>
     </div>
 
-    <script src="asset_loader.js"></script>
+    <div id="clock-container">
+        <div id="date-display"></div>
+        <div id="time-display"></div>
+    </div>
 
-    <!-- 分割したJSファイル (この順番で読み込む) -->
+    <script src="asset_loader.js"></script>
     <script src="utils.js"></script>
     <script src="config.js"></script>
     <script src="entity_base.js"></script>
@@ -146,7 +195,6 @@
     <script src="predator_entities.js"></script>
     <script src="effect_entities.js"></script>
     <script src="flock.js"></script>
-    
     <script src="main.js"></script>
 </body>
 </html>

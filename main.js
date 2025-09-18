@@ -9,6 +9,20 @@ let lastTime = 0;
 let animationId;
 let loadedImages;
 
+// ===== CLOCK ELEMENTS & VARS =====
+const clockContainer = document.getElementById('clock-container');
+const dateDisplay = document.getElementById('date-display');
+const timeDisplay = document.getElementById('time-display');
+let currentFontIndex = 0;
+
+// ★フォントごとのスタイルに「日付の右側の余白」を追加
+const fontStyles = [
+    { name: 'CuteFont',     containerBottom: '-20px', dateMarginBottom: '-40px', dateSize: '28px', timeSize: '120px', dateLetterSpacing: '1px', timeLetterSpacing: '4px', datePaddingRight: '7px' },
+    { name: 'BigShoulders', containerBottom: '7px', dateMarginBottom: '0px', dateSize: '25px', timeSize: '90px', dateLetterSpacing: '2px', timeLetterSpacing: '7px', datePaddingRight: '10px' },
+    { name: 'AveriaSerif',  containerBottom: '5px', dateMarginBottom: '-15px', dateSize: '20px', timeSize: '90px', dateLetterSpacing: '1.5px', timeLetterSpacing: '4px', datePaddingRight: '10px' }
+];
+
+
 const translationMap = {
     'Global Settings': 'グローバル設定', 'Prey Fish': '被食者', 'Predators': '捕食者',
     'PREDATOR_SPAWN_COOLDOWN': '出現クールダウン', 'OVERPOPULATION_COUNT': '過密発生数 (+)',
@@ -29,6 +43,42 @@ function translate(key) {
     return translationMap[key] || key;
 }
 
+// ===== CLOCK LOGIC =====
+function updateClock() {
+    if (!dateDisplay || !timeDisplay) return;
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const date = now.getDate();
+    const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
+
+    dateDisplay.textContent = `${year}/${month}/${date} ${day}`;
+
+    const hours = now.getHours();
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    timeDisplay.textContent = `${hours}:${minutes}`;
+}
+
+// ★指定されたスタイルに「日付の右側の余白」の適用を追加
+function applyClockStyle(style) {
+    if (clockContainer) {
+        clockContainer.style.fontFamily = `'${style.name}', sans-serif`;
+        clockContainer.style.bottom = style.containerBottom;
+    }
+    if (dateDisplay) {
+        dateDisplay.style.marginBottom = style.dateMarginBottom;
+        dateDisplay.style.fontSize = style.dateSize;
+        dateDisplay.style.letterSpacing = style.dateLetterSpacing;
+        dateDisplay.style.paddingRight = style.datePaddingRight; // ★追加
+    }
+    if (timeDisplay) {
+        timeDisplay.style.fontSize = style.timeSize;
+        timeDisplay.style.letterSpacing = style.timeLetterSpacing;
+    }
+}
+
+
 function animate(currentTime) {
     if (lastTime === 0) {
         lastTime = currentTime;
@@ -43,6 +93,8 @@ function animate(currentTime) {
         flock.update(deltaTime);
         flock.draw();
     }
+    
+    updateClock();
 
     animationId = requestAnimationFrame(animate);
 }
@@ -81,7 +133,6 @@ function populateInfoPanel() {
     }
 }
 
-// シンプルなリセット機能を追加
 function resetSimulation() {
     cancelAnimationFrame(animationId);
     lastTime = 0;
@@ -102,10 +153,13 @@ window.addEventListener('keydown', (e) => {
     if (key === 'd') {
         handleDisplayMode();
     }
-    // 'r'キーでリセット
     if (key === 'r') {
         console.log("--- Simulation Reset ---");
         resetSimulation();
+    }
+    if (key === 't') {
+        currentFontIndex = (currentFontIndex + 1) % fontStyles.length;
+        applyClockStyle(fontStyles[currentFontIndex]);
     }
 });
 
@@ -123,9 +177,12 @@ canvas.addEventListener('mousedown', (e) => {
 console.log("Loading assets...");
 loadAssets().then(images => {
     console.log("Assets loaded successfully!");
-    loadedImages = images; // ★読み込んだ画像をグローバル変数に保存
-    flock = new Flock(loadedImages); // ★画像データを渡してFlockを初期化
+    loadedImages = images;
+    flock = new Flock(loadedImages);
     populateInfoPanel();
+    
+    applyClockStyle(fontStyles[0]);
+    
     animationId = requestAnimationFrame(animate);
 }).catch(error => {
     console.error("Could not initialize simulation:", error);
