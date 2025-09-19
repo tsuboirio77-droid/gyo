@@ -4,6 +4,22 @@ const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+/**
+ * User Agentを元にデバイスの種類を判定します。
+ * @returns {string} 'DESKTOP', 'TABLET', or 'MOBILE'
+ */
+function detectDeviceType() {
+    const ua = navigator.userAgent;
+    if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) {
+        return 'TABLET';
+    }
+    if (/Mobile|iP(hone|od)|Android|BlackBerry|IEMobile|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(ua)) {
+        return 'MOBILE';
+    }
+    return 'DESKTOP';
+}
+const DEVICE_TYPE = detectDeviceType();
+
 let flock;
 let lastTime = 0;
 let animationId;
@@ -32,15 +48,15 @@ const translationMap = {
     'Global Settings': 'グローバル設定', 'Prey Fish': '被食者', 'Predators': '捕食者',
     'PREDATOR_SPAWN_COOLDOWN': '出現クールダウン', 'OVERPOPULATION_COUNT': '過密発生数 (+)',
     'PREDATOR_TARGET_BONUS': '担当ボーナス', 'maxSpeed': '最高速度', 'separationWeight': '分離',
-    'alignmentWeight': '整列', 'cohesionWeight': '結合', 'reproductionCost': '繁殖コスト', 
+    'alignmentWeight': '整列', 'cohesionWeight': '結合', 'reproductionCost': '繁殖コスト',
     'planktonSeekRange': 'プランクトン索敵', 'fleeForceMultiplier': '逃走力', 'planktonSeekMultiplier': 'プランクトン追跡力',
     'planktonFocusMultiplier': '餌への集中度', 'eatCooldown': '食事クールダウン',
     'fleeSpeedMultiplier': '逃走速度倍率', 'wanderForce': '放浪力', 'foodSeekForce': '餌追跡力',
-    'turnFactor': '旋回性能', 'lifespan': '寿命', 'eatDamage': '捕食ダメージ', 'maxCount': '最大数', 
+    'turnFactor': '旋回性能', 'lifespan': '寿命', 'eatDamage': '捕食ダメージ', 'maxCount': '最大数',
     'seekRange': '索敵範囲', 'isFlocking': '群れ形成',
-    'minSpeedMultiplier': '最低速度維持率', 'minSpeedForce': '最低速度推進力', 
-    'stunRadius': 'スタン半径', 'stunDuration': 'スタン時間', 'stunSeekRange': 'スタン索敵範囲', 
-    'stealthDuration': 'ステルス化時間', 'stealthSeekRange': 'ステルス索敵範囲', 
+    'minSpeedMultiplier': '最低速度維持率', 'minSpeedForce': '最低速度推進力',
+    'stunRadius': 'スタン半径', 'stunDuration': 'スタン時間', 'stunSeekRange': 'スタン索敵範囲',
+    'stealthDuration': 'ステルス化時間', 'stealthSeekRange': 'ステルス索敵範囲',
     'ambushForce': '奇襲力', 'brakeForce': 'ブレーキ力', 'turnTorque': '旋回トルク'
 };
 
@@ -68,7 +84,7 @@ function drawAnalogClock() {
     if (!analogCtx || fontStyles[currentFontIndex].type !== 'analog') return;
 
     const now = new Date();
-    
+
     const month = now.getMonth() + 1;
     const date = now.getDate();
     const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
@@ -79,10 +95,10 @@ function drawAnalogClock() {
 
     analogCtx.save();
     analogCtx.translate(radius, radius);
-    
+
     analogCtx.strokeStyle = 'rgb(0, 170, 255)';
 
-    const rectHeight = radius * 1.8; 
+    const rectHeight = radius * 1.8;
     const rectWidth = radius * 1.4; // ★横幅を大きく
     const hh = rectHeight /2;
     const hw = rectWidth / 2;
@@ -137,7 +153,7 @@ function drawAnalogClock() {
         ctx.stroke();
         ctx.rotate(-pos);
     }
-    
+
     drawHand(analogCtx, hourAngle, radius * 0.35, 5, 'rgb(0, 170, 255)');
     drawHand(analogCtx, minAngle, radius * 0.55, 3, 'rgb(0, 170, 255)');
     drawHand(analogCtx, secAngle, radius * 0.6, 1.5, 'rgb(255, 0, 0)');
@@ -196,7 +212,7 @@ function animate(currentTime) {
         flock.update(deltaTime);
         flock.draw();
     }
-    
+
     const currentStyle = fontStyles[currentFontIndex];
     if (currentStyle.type === 'analog') {
         drawAnalogClock();
@@ -219,7 +235,7 @@ function populateInfoPanel() {
         'prey-status': { category: 'Prey Fish', keys: ['SARDINE', 'MACKEREL', 'BONITO', 'CUTLASS'] },
         'predator-status': { category: 'Predators', keys: ['SHARK', 'MARLIN', 'RAY', 'TUNA'] }
     };
-    
+
     for (const [panelId, data] of Object.entries(panels)) {
         const panel = document.getElementById(panelId);
         let html = '';
@@ -265,10 +281,9 @@ window.addEventListener('keydown', (e) => {
         console.log("--- Simulation Reset ---");
         resetSimulation();
     }
-    if (key === 't') {
-        currentFontIndex = (currentFontIndex + 1) % fontStyles.length;
-        applyClockStyle(fontStyles[currentFontIndex]);
-    }
+    // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 削除 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
+    // 't'キーによる時計切り替え機能を削除
+    // ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 削除 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
 });
 
 canvas.addEventListener('mousedown', (e) => {
@@ -281,6 +296,17 @@ canvas.addEventListener('mousedown', (e) => {
     }
 });
 
+// ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 追加 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
+// 時計コンテナがクリックされたときの処理
+if (clockContainer) {
+    clockContainer.addEventListener('click', () => {
+        currentFontIndex = (currentFontIndex + 1) % fontStyles.length;
+        applyClockStyle(fontStyles[currentFontIndex]);
+    });
+}
+// ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 追加 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
+
+
 // --- シミュレーション開始処理 ---
 console.log("Loading assets...");
 loadAssets().then(images => {
@@ -288,9 +314,9 @@ loadAssets().then(images => {
     loadedImages = images;
     flock = new Flock(loadedImages);
     populateInfoPanel();
-    
+
     applyClockStyle(fontStyles[0]);
-    
+
     animationId = requestAnimationFrame(animate);
 }).catch(error => {
     console.error("Could not initialize simulation:", error);

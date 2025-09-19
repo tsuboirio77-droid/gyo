@@ -31,7 +31,14 @@ const CONFIG = {
   "PLANKTON_GROWTH_RATE": 0.01,
   "WALL_AVOID_DISTANCE": 1,
   "WALL_AVOID_FORCE": 0.2,
-"FISH_TYPES": {
+  // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 追加 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
+  "DEVICE_SCALES": {
+      "DESKTOP": 1.0,
+      "TABLET": 0.8,
+      "MOBILE": 0.6
+  },
+  // ★▲▲▲▲▲▲▲▲▲▲▲▲▲▲ 追加 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
+  "FISH_TYPES": {
     "SARDINE": { "count": 80, "maxSpeed": 1.5, "separationWeight": 2, "alignmentWeight": 1, "cohesionWeight": 1, "width": 16, "height": 8, "eatRadius": 5, "reproductionCost": 12, "planktonSeekRange": 100, "spawnColor": "255, 100, 0", "fleeForceMultiplier": 2.5, "fleeRange": 260 },
     "MACKEREL": { "count": 50, "maxSpeed": 1.5, "separationWeight": 3, "alignmentWeight": 1.5, "cohesionWeight": 1.2, "width": 24, "height": 12, "eatRadius": 8, "reproductionCost": 20, "planktonSeekRange": 100, "spawnColor": "0, 150, 255", "fleeForceMultiplier": 2.5, "fleeRange": 260 },
     "BONITO": { "count": 20, "maxSpeed": 1.5, "separationWeight": 3.5, "alignmentWeight": 1.5, "cohesionWeight": 1.2, "width": 32, "height": 16, "eatRadius": 10, "reproductionCost": 35, "planktonSeekMultiplier": 2, "planktonSeekRange": 60, "spawnColor": "0, 200, 50", "fleeForceMultiplier": 2.5, "planktonFocusMultiplier": 0.2, "seekForceMultiplier": 1.5, "fleeRange": 240 },

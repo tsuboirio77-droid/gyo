@@ -131,19 +131,31 @@
         }
         
         /* --- Clock (Bottom Right) --- */
+        /* ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正ブロック ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★ */
         #clock-container {
             position: fixed;
             right: 10px;
             bottom: 5px; /* JSで制御 */
             color: #00aaff;
-            opacity: 0.2;
-            pointer-events: none;
+            opacity: 0.7; /* 視認性向上のため透明度を調整 */
+            /* pointer-events: none; <- これが原因でしたので削除 */
             z-index: 10;
 
             display: flex;
             flex-direction: column;
             align-items: flex-end; /* デジタル時計は右揃え */
+            
+            /* 操作性向上のためのスタイルを追加 */
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            user-select: none; /* テキスト選択を無効化 */
+            -webkit-user-select: none;
         }
+        
+        #clock-container:hover {
+            opacity: 0.95; /* マウスオーバーで濃くする */
+        }
+        /* ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正ブロック ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★ */
         
         #clock-container.analog-mode-alignment {
             align-items: center;
@@ -203,8 +215,7 @@
     <div id="clock-container">
         <div id="date-display"></div>
         <div id="time-display"></div>
-<canvas id="analog-clock-canvas"></canvas>
-
+        <canvas id="analog-clock-canvas"></canvas>
         <div id="analog-date-display"></div>
     </div>
 

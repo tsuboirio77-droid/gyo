@@ -17,8 +17,10 @@ class Marlin extends Predator {
         // 画像の中心 (this.position) から、口先までの全体オフセットを計算
         // config.mouthOffset は中心からの口の位置の比率 (this.config.widthに対する)
         // config.billTipOffset は口からビルの先端までの比率 (this.config.widthに対する)
-        const totalForwardOffset = this.config.width * (this.config.mouthOffset || 0.3) + 
-                                   this.config.width * (this.config.billTipOffset || 0.2); 
+        // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正点 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
+        const totalForwardOffset = this.width * (this.config.mouthOffset || 0.3) + 
+                                   this.width * (this.config.billTipOffset || 0.2); 
+        // ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正点 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
         
         return this.position.add(dir.multiply(totalForwardOffset));
     }
@@ -217,7 +219,9 @@ class Whale extends Predator {
         }
         return closest;
     }
-    act(qtree, allPrey, allPredators, currentCounts) { const overpopulatedTypes = []; for(const type in flock.initialCounts) { if ((currentCounts[type] || 0) > (flock.initialCounts[type] || 0) + CONFIG.WHALE_OVERPOPULATION_COUNT) { overpopulatedTypes.push(type); } } if(overpopulatedTypes.length > 0) { const targetPrey = allPrey.filter(p => overpopulatedTypes.includes(p.type)); const closest = this.findClosestPrey(targetPrey); if(closest) this.applyForce(this.seek(closest.position)); } const mouthPosition = this.getMouthPosition(); for (const prey of allPrey) { if (prey.alpha > 0 && !prey.isDying) { const d = mouthPosition.subtract(prey.position).magnitude(); if (d < this.config.eatRadius) { prey.startDying(); } } } } handleBoundaries() { const margin = this.config.width; if ((this.velocity.x > 0 && this.position.x > canvas.width + margin) || (this.velocity.x < 0 && this.position.x < -margin)) { this.alpha = 0; } } }
+    act(qtree, allPrey, allPredators, currentCounts) { const overpopulatedTypes = []; for(const type in flock.initialCounts) { if ((currentCounts[type] || 0) > (flock.initialCounts[type] || 0) + CONFIG.WHALE_OVERPOPULATION_COUNT) { overpopulatedTypes.push(type); } } if(overpopulatedTypes.length > 0) { const targetPrey = allPrey.filter(p => overpopulatedTypes.includes(p.type)); const closest = this.findClosestPrey(targetPrey); if(closest) this.applyForce(this.seek(closest.position)); } const mouthPosition = this.getMouthPosition(); for (const prey of allPrey) { if (prey.alpha > 0 && !prey.isDying) { const d = mouthPosition.subtract(prey.position).magnitude(); if (d < this.config.eatRadius) { prey.startDying(); } } } }
+    handleBoundaries() { const margin = this.config.width; if ((this.velocity.x > 0 && this.position.x > canvas.width + margin) || (this.velocity.x < 0 && this.position.x < -margin)) { this.alpha = 0; } }
+}
 
 const PredatorClasses = { SHARK: Shark, MARLIN: Marlin, RAY: Ray, TUNA: Tuna };
 const predatorTypeMap = { BONITO: 'SHARK', MACKEREL: 'MARLIN', CUTLASS: 'TUNA', SARDINE: 'RAY' };

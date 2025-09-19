@@ -1,5 +1,42 @@
 // FILE: entity_base.js
-class Boid { constructor(type, image, x = Math.random() * canvas.width, y = Math.random() * canvas.height, vx, vy) { this.type = type; this.config = CONFIG.FISH_TYPES[type] || CONFIG.FISH_TYPES.SARDINE; this.position = new Vector(x, y); if (vx !== undefined && vy !== undefined) { this.velocity = new Vector(vx, vy); } else { this.velocity = new Vector((Math.random() - 0.5) * this.config.maxSpeed, (Math.random() - 0.5) * this.config.maxSpeed); } this.acceleration = new Vector(); this.image = image; this.alpha = 1; this.isDying = false; this.dyingTimer = 0; this.maxDyingTime = 30; this.isGlowing = false; this.glowingTimer = 0; this.eatCooldownTimer = 0; this.isStunned = false; this.stunTimer = 0; } startDying() { if (!this.isDying) { this.isDying = true; this.dyingTimer = this.maxDyingTime; } } startGlowing(durationFrames, color = "255,255,170") { this.isGlowing = true; this.glowingTimer = durationFrames; this.glowColor = color; } stun(duration) { this.isStunned = true; this.stunTimer = duration; } applyForce(force) { this.acceleration = this.acceleration.add(force); } updateTimers(deltaTime) { if (this.isDying) { this.dyingTimer -= deltaTime; if (this.dyingTimer <= 0) this.alpha = 0; return false; } if (this.isStunned) { this.stunTimer -= deltaTime; if (this.stunTimer <= 0) this.isStunned = false; } if (this.isGlowing) { this.glowingTimer = Math.max(0, this.glowingTimer - deltaTime); if (this.glowingTimer <= 0) this.isGlowing = false; } if (this.eatCooldownTimer > 0) { this.eatCooldownTimer = Math.max(0, this.eatCooldownTimer - deltaTime); } return true; } act(qtree, predators, planktonQtree, clickThreats) { if (this.isStunned) { this.acceleration = this.velocity.multiply(-0.1); const sway = new Vector(this.velocity.y, -this.velocity.x).normalize().multiply(0.2); this.applyForce(sway.multiply(Math.sin(this.stunTimer * 0.5))); return; } const allThreats = [...predators, ...clickThreats]; const fleeForce = this.flee(allThreats); const range = new Rectangle(this.position.x, this.position.y, CONFIG.VISUAL_RANGE, CONFIG.VISUAL_RANGE); const neighbors = qtree.query(range); const foodAttraction = this.eatCooldownTimer === 0 ? this.seekClosest(planktonQtree, this.config.planktonSeekRange || 40) : new Vector(); if (fleeForce.magnitude() > 0) { this.applyForce(fleeForce.multiply(this.config.fleeForceMultiplier || 2.5)); } else if (foodAttraction.magnitude() > 0 && this.type === 'BONITO') { const focus = this.config.planktonFocusMultiplier || 0.2; this.applyForce(this.calculateAlignment(neighbors).multiply(this.config.alignmentWeight * focus)); this.applyForce(this.calculateCohesion(neighbors).multiply(this.config.cohesionWeight * focus)); this.applyForce(this.calculateSeparation(neighbors).multiply(this.config.separationWeight)); this.applyForce(foodAttraction.multiply(this.config.planktonSeekMultiplier || 1.0)); } else { this.flock(neighbors); if (this.eatCooldownTimer === 0) { this.applyForce(foodAttraction.multiply(this.config.planktonSeekMultiplier || 1.0)); } } } flock(neighbors) { this.applyForce(this.calculateAlignment(neighbors).multiply(this.config.alignmentWeight)); this.applyForce(this.calculateCohesion(neighbors).multiply(this.config.cohesionWeight)); this.applyForce(this.calculateSeparation(neighbors).multiply(this.config.separationWeight)); } update(deltaTime, speedLimit) { if (!this.updateTimers(deltaTime)) return; const limit = speedLimit !== undefined ? speedLimit : this.config.maxSpeed; this.velocity = this.velocity.add(this.acceleration.multiply(deltaTime)); if (this.isStunned) { this.velocity = this.velocity.limit(limit * 0.5); } else { this.velocity = this.velocity.limit(limit); } this.position = this.position.add(this.velocity.multiply(deltaTime)); this.acceleration = new Vector(); this.applyForce(this.avoidWalls()); this.handleBoundaries(); } handleBoundaries() { if (this.position.x < 0) { this.position.x = 0; this.velocity.x *= -1; } if (this.position.x > canvas.width) { this.position.x = canvas.width; this.velocity.x *= -1; } if (this.position.y < 0) { this.position.y = 0; this.velocity.y *= -1; } if (this.position.y > canvas.height) { this.position.y = canvas.height; this.velocity.y *= -1; } }
+class Boid {
+    constructor(type, image, x = Math.random() * canvas.width, y = Math.random() * canvas.height, vx, vy) {
+        this.type = type;
+        this.config = CONFIG.FISH_TYPES[type] || CONFIG.FISH_TYPES.SARDINE;
+        this.position = new Vector(x, y);
+        if (vx !== undefined && vy !== undefined) {
+            this.velocity = new Vector(vx, vy);
+        } else {
+            this.velocity = new Vector((Math.random() - 0.5) * this.config.maxSpeed, (Math.random() - 0.5) * this.config.maxSpeed);
+        }
+        this.acceleration = new Vector();
+        this.image = image;
+
+        // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正点 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
+        const scale = CONFIG.DEVICE_SCALES[DEVICE_TYPE] || 1.0;
+        this.width = this.config.width * scale;
+        this.height = this.config.height * scale;
+        // ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正点 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
+
+        this.alpha = 1;
+        this.isDying = false;
+        this.dyingTimer = 0;
+        this.maxDyingTime = 30;
+        this.isGlowing = false;
+        this.glowingTimer = 0;
+        this.eatCooldownTimer = 0;
+        this.isStunned = false;
+        this.stunTimer = 0;
+    }
+    startDying() { if (!this.isDying) { this.isDying = true; this.dyingTimer = this.maxDyingTime; } }
+    startGlowing(durationFrames, color = "255,255,170") { this.isGlowing = true; this.glowingTimer = durationFrames; this.glowColor = color; }
+    stun(duration) { this.isStunned = true; this.stunTimer = duration; }
+    applyForce(force) { this.acceleration = this.acceleration.add(force); }
+    updateTimers(deltaTime) { if (this.isDying) { this.dyingTimer -= deltaTime; if (this.dyingTimer <= 0) this.alpha = 0; return false; } if (this.isStunned) { this.stunTimer -= deltaTime; if (this.stunTimer <= 0) this.isStunned = false; } if (this.isGlowing) { this.glowingTimer = Math.max(0, this.glowingTimer - deltaTime); if (this.glowingTimer <= 0) this.isGlowing = false; } if (this.eatCooldownTimer > 0) { this.eatCooldownTimer = Math.max(0, this.eatCooldownTimer - deltaTime); } return true; }
+    act(qtree, predators, planktonQtree, clickThreats) { if (this.isStunned) { this.acceleration = this.velocity.multiply(-0.1); const sway = new Vector(this.velocity.y, -this.velocity.x).normalize().multiply(0.2); this.applyForce(sway.multiply(Math.sin(this.stunTimer * 0.5))); return; } const allThreats = [...predators, ...clickThreats]; const fleeForce = this.flee(allThreats); const range = new Rectangle(this.position.x, this.position.y, CONFIG.VISUAL_RANGE, CONFIG.VISUAL_RANGE); const neighbors = qtree.query(range); const foodAttraction = this.eatCooldownTimer === 0 ? this.seekClosest(planktonQtree, this.config.planktonSeekRange || 40) : new Vector(); if (fleeForce.magnitude() > 0) { this.applyForce(fleeForce.multiply(this.config.fleeForceMultiplier || 2.5)); } else if (foodAttraction.magnitude() > 0 && this.type === 'BONITO') { const focus = this.config.planktonFocusMultiplier || 0.2; this.applyForce(this.calculateAlignment(neighbors).multiply(this.config.alignmentWeight * focus)); this.applyForce(this.calculateCohesion(neighbors).multiply(this.config.cohesionWeight * focus)); this.applyForce(this.calculateSeparation(neighbors).multiply(this.config.separationWeight)); this.applyForce(foodAttraction.multiply(this.config.planktonSeekMultiplier || 1.0)); } else { this.flock(neighbors); if (this.eatCooldownTimer === 0) { this.applyForce(foodAttraction.multiply(this.config.planktonSeekMultiplier || 1.0)); } } }
+    flock(neighbors) { this.applyForce(this.calculateAlignment(neighbors).multiply(this.config.alignmentWeight)); this.applyForce(this.calculateCohesion(neighbors).multiply(this.config.cohesionWeight)); this.applyForce(this.calculateSeparation(neighbors).multiply(this.config.separationWeight)); }
+    update(deltaTime, speedLimit) { if (!this.updateTimers(deltaTime)) return; const limit = speedLimit !== undefined ? speedLimit : this.config.maxSpeed; this.velocity = this.velocity.add(this.acceleration.multiply(deltaTime)); if (this.isStunned) { this.velocity = this.velocity.limit(limit * 0.5); } else { this.velocity = this.velocity.limit(limit); } this.position = this.position.add(this.velocity.multiply(deltaTime)); this.acceleration = new Vector(); this.applyForce(this.avoidWalls()); this.handleBoundaries(); }
+    handleBoundaries() { if (this.position.x < 0) { this.position.x = 0; this.velocity.x *= -1; } if (this.position.x > canvas.width) { this.position.x = canvas.width; this.velocity.x *= -1; } if (this.position.y < 0) { this.position.y = 0; this.velocity.y *= -1; } if (this.position.y > canvas.height) { this.position.y = canvas.height; this.velocity.y *= -1; } }
     avoidWalls() {
         let steer = new Vector();
         const predict = this.velocity.normalize().multiply(25);
@@ -18,8 +55,12 @@ class Boid { constructor(type, image, x = Math.random() * canvas.width, y = Math
         if (this.isDying) { if (Math.floor(this.dyingTimer) % 4 < 2) { ctx.restore(); return; } ctx.filter = 'brightness(1.5) drop-shadow(0 0 8px #ff0000)'; const scale = this.dyingTimer / this.maxDyingTime; ctx.scale(scale, scale); }
         else if (this.isStunned) { if (Math.floor(this.stunTimer / 4) % 2 === 0) { ctx.filter = 'brightness(2.5) drop-shadow(0 0 20px #ff0)'; } }
         else if (this.isGlowing) { const color = this.glowColor || "255,255,170"; ctx.filter = `brightness(1.8) drop-shadow(0 0 10px rgba(${color}, 0.8))`; }
-        const w = this.config.width;
-        const h = this.config.height;
+        
+        // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正点 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
+        const w = this.width;
+        const h = this.height;
+        // ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正点 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
+
         ctx.globalAlpha = (this.isStealthed) ? 0.3 : 0.85;
         ctx.drawImage(this.image, -w / 2, -h / 2, w, h);
         ctx.filter = 'none';
@@ -27,7 +68,8 @@ class Boid { constructor(type, image, x = Math.random() * canvas.width, y = Math
         ctx.restore();
     }
     drawEffects(ctx) { }
-    seek(target) { const desired = target.subtract(this.position).normalize().multiply(this.config.maxSpeed); const steer = desired.subtract(this.velocity); const multiplier = this.config.seekForceMultiplier || 1.0; return steer.limit(CONFIG.MAX_FORCE * multiplier); } seekClosest(qtree, range = Infinity) { let closest = null; let minDistance = range; const searchArea = new Rectangle(this.position.x, this.position.y, range, range); const candidates = qtree.query(searchArea); for (const target of candidates) { const d = this.position.subtract(target.position).magnitude(); if (d < minDistance) { minDistance = d; closest = target; } } return closest ? this.seek(closest.position) : new Vector(); } 
+    seek(target) { const desired = target.subtract(this.position).normalize().multiply(this.config.maxSpeed); const steer = desired.subtract(this.velocity); const multiplier = this.config.seekForceMultiplier || 1.0; return steer.limit(CONFIG.MAX_FORCE * multiplier); }
+    seekClosest(qtree, range = Infinity) { let closest = null; let minDistance = range; const searchArea = new Rectangle(this.position.x, this.position.y, range, range); const candidates = qtree.query(searchArea); for (const target of candidates) { const d = this.position.subtract(target.position).magnitude(); if (d < minDistance) { minDistance = d; closest = target; } } return closest ? this.seek(closest.position) : new Vector(); }
     flee(threats) {
         let steer = new Vector();
         for (const threat of threats) {
@@ -47,7 +89,10 @@ class Boid { constructor(type, image, x = Math.random() * canvas.width, y = Math
         }
         return steer;
     }
-    calculateAlignment(neighbors) { let sum = new Vector(); let count = 0; for (const other of neighbors) { if (other !== this && other.type === this.type && other.alpha > 0) { sum = sum.add(other.velocity); count++; } } if (count > 0) { const desired = sum.divide(count).normalize().multiply(this.config.maxSpeed); return desired.subtract(this.velocity).limit(CONFIG.MAX_FORCE); } return new Vector(); } calculateCohesion(neighbors) { let sum = new Vector(); let count = 0; for (const other of neighbors) { if (other !== this && other.type === this.type && other.alpha > 0) { sum = sum.add(other.position); count++; } } if (count > 0) { return this.seek(sum.divide(count)); } return new Vector(); } calculateSeparation(neighbors) { let steer = new Vector(); for (const other of neighbors) { if (other === this || other.alpha <= 0) continue; const d = this.position.subtract(other.position).magnitude(); if (d > 0 && d < CONFIG.AVOID_RADIUS) { const diff = this.position.subtract(other.position).normalize().divide(d); steer = steer.add(diff); } } if (steer.magnitude() > 0) { const desired = steer.normalize().multiply(this.config.maxSpeed); return desired.subtract(this.velocity).limit(CONFIG.MAX_FORCE); } return steer; } }
+    calculateAlignment(neighbors) { let sum = new Vector(); let count = 0; for (const other of neighbors) { if (other !== this && other.type === this.type && other.alpha > 0) { sum = sum.add(other.velocity); count++; } } if (count > 0) { const desired = sum.divide(count).normalize().multiply(this.config.maxSpeed); return desired.subtract(this.velocity).limit(CONFIG.MAX_FORCE); } return new Vector(); }
+    calculateCohesion(neighbors) { let sum = new Vector(); let count = 0; for (const other of neighbors) { if (other !== this && other.type === this.type && other.alpha > 0) { sum = sum.add(other.position); count++; } } if (count > 0) { return this.seek(sum.divide(count)); } return new Vector(); }
+    calculateSeparation(neighbors) { let steer = new Vector(); for (const other of neighbors) { if (other === this || other.alpha <= 0) continue; const d = this.position.subtract(other.position).magnitude(); if (d > 0 && d < CONFIG.AVOID_RADIUS) { const diff = this.position.subtract(other.position).normalize().divide(d); steer = steer.add(diff); } } if (steer.magnitude() > 0) { const desired = steer.normalize().multiply(this.config.maxSpeed); return desired.subtract(this.velocity).limit(CONFIG.MAX_FORCE); } return steer; }
+}
 
 class Predator extends Boid {
     constructor(type, image, x, y, vx, vy, targetPreyType) {
@@ -70,7 +115,23 @@ class Predator extends Boid {
         if (this.currentTarget && !this.attemptToEat(this.currentTarget)) { this.applyForce(this.seek(this.currentTarget.position)); }
         else if (!this.currentTarget) { const wander = new Vector((Math.random() - 0.5) * (this.config.wanderForce || 0.1), (Math.random() - 0.5) * (this.config.wanderForce || 0.1)); this.applyForce(wander); }
     }
-    getMouthPosition() { if (this.velocity.magnitude() === 0) return this.position; const dir = this.velocity.normalize(); const offsetConf = this.config.mouthOffset; if (typeof offsetConf === 'object' && offsetConf !== null) { const perpendicular = new Vector(dir.y, -dir.x); const offsetX = this.config.width * offsetConf.x; const offsetY = this.config.height * offsetConf.y; return this.position.add(dir.multiply(offsetX)).add(perpendicular.multiply(offsetY)); } else { return this.position.add(dir.multiply(this.config.width * offsetConf)); } }
+    getMouthPosition() {
+        if (this.velocity.magnitude() === 0) return this.position;
+        const dir = this.velocity.normalize();
+        const offsetConf = this.config.mouthOffset;
+        if (typeof offsetConf === 'object' && offsetConf !== null) {
+            const perpendicular = new Vector(dir.y, -dir.x);
+            // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正点 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
+            const offsetX = this.width * offsetConf.x;
+            const offsetY = this.height * offsetConf.y;
+            // ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正点 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
+            return this.position.add(dir.multiply(offsetX)).add(perpendicular.multiply(offsetY));
+        } else {
+            // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正点 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
+            return this.position.add(dir.multiply(this.width * offsetConf));
+            // ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正点 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
+        }
+    }
     findBestPrey(preyList, allPredators, currentCounts, qtree) {
         const seekRange = this.isOffScreen() ? 9999 * 2 : this.config.seekRange;
         const availablePrey = preyList.filter(p => p.alpha > 0 && !p.isDying && this.config.eats.includes(p.type) && this.position.subtract(p.position).magnitude() < seekRange);
@@ -123,4 +184,8 @@ class Predator extends Boid {
         
         return topChoices[Math.floor(Math.random() * topChoices.length)].prey;
     }
-    update(deltaTime) { if (!this.updateTimers(deltaTime)) return; if (this.lifespan > 0) this.lifespan--; this.velocity = this.velocity.add(this.acceleration.multiply(deltaTime)); this.velocity = this.velocity.limit(this.config.maxSpeed); this.position = this.position.add(this.velocity.multiply(deltaTime)); this.acceleration = new Vector(); this.handleBoundaries(); } handleBoundaries() { const margin = CONFIG.PREDATOR_DESPAWN_MARGIN; if (this.isLeaving) { if (this.position.x < -margin || this.position.x > canvas.width + margin || this.position.y < -margin || this.position.y > canvas.height + margin) { this.alpha = 0; } } else if (!this.isOffScreen()) { if (this.position.x < -margin) this.position.x = canvas.width + margin; if (this.position.x > canvas.width + margin) this.position.x = -margin; if (this.position.y < -margin) this.position.y = canvas.height + margin; if (this.position.y > canvas.height + margin) this.position.y = -margin; } } canEat() { return this.eatCooldownTimer === 0; } resetEatCooldown(eatenPrey) { this.eatCooldownTimer = this.config.eatCooldown; this.lifespan -= this.config.eatDamage; this.startGlowing(15, eatenPrey.config.spawnColor); } }
+    update(deltaTime) { if (!this.updateTimers(deltaTime)) return; if (this.lifespan > 0) this.lifespan--; this.velocity = this.velocity.add(this.acceleration.multiply(deltaTime)); this.velocity = this.velocity.limit(this.config.maxSpeed); this.position = this.position.add(this.velocity.multiply(deltaTime)); this.acceleration = new Vector(); this.handleBoundaries(); }
+    handleBoundaries() { const margin = CONFIG.PREDATOR_DESPAWN_MARGIN; if (this.isLeaving) { if (this.position.x < -margin || this.position.x > canvas.width + margin || this.position.y < -margin || this.position.y > canvas.height + margin) { this.alpha = 0; } } else if (!this.isOffScreen()) { if (this.position.x < -margin) this.position.x = canvas.width + margin; if (this.position.x > canvas.width + margin) this.position.x = -margin; if (this.position.y < -margin) this.position.y = canvas.height + margin; if (this.position.y > canvas.height + margin) this.position.y = -margin; } }
+    canEat() { return this.eatCooldownTimer === 0; }
+    resetEatCooldown(eatenPrey) { this.eatCooldownTimer = this.config.eatCooldown; this.lifespan -= this.config.eatDamage; this.startGlowing(15, eatenPrey.config.spawnColor); }
+}
