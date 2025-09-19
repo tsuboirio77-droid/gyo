@@ -27,7 +27,27 @@ class Boid { constructor(type, image, x = Math.random() * canvas.width, y = Math
         ctx.restore();
     }
     drawEffects(ctx) { }
-    seek(target) { const desired = target.subtract(this.position).normalize().multiply(this.config.maxSpeed); const steer = desired.subtract(this.velocity); const multiplier = this.config.seekForceMultiplier || 1.0; return steer.limit(CONFIG.MAX_FORCE * multiplier); } seekClosest(qtree, range = Infinity) { let closest = null; let minDistance = range; const searchArea = new Rectangle(this.position.x, this.position.y, range, range); const candidates = qtree.query(searchArea); for (const target of candidates) { const d = this.position.subtract(target.position).magnitude(); if (d < minDistance) { minDistance = d; closest = target; } } return closest ? this.seek(closest.position) : new Vector(); } flee(threats) { let steer = new Vector(); for (const threat of threats) { if (threat.alpha <= 0 || (threat.type === 'RAY' && threat.isStealthed)) continue; const range = threat.config ? threat.config.seekRange : CONFIG.CLICK_EFFECT.threatRadius; const diff = this.position.subtract(threat.position); const d = diff.magnitude(); if (d < range) { steer = steer.add(diff.normalize().divide(d)); } } if (steer.magnitude() > 0) { return steer.normalize().multiply(this.config.maxSpeed).subtract(this.velocity).limit(CONFIG.MAX_FORCE * 5); } return steer; } calculateAlignment(neighbors) { let sum = new Vector(); let count = 0; for (const other of neighbors) { if (other !== this && other.type === this.type && other.alpha > 0) { sum = sum.add(other.velocity); count++; } } if (count > 0) { const desired = sum.divide(count).normalize().multiply(this.config.maxSpeed); return desired.subtract(this.velocity).limit(CONFIG.MAX_FORCE); } return new Vector(); } calculateCohesion(neighbors) { let sum = new Vector(); let count = 0; for (const other of neighbors) { if (other !== this && other.type === this.type && other.alpha > 0) { sum = sum.add(other.position); count++; } } if (count > 0) { return this.seek(sum.divide(count)); } return new Vector(); } calculateSeparation(neighbors) { let steer = new Vector(); for (const other of neighbors) { if (other === this || other.alpha <= 0) continue; const d = this.position.subtract(other.position).magnitude(); if (d > 0 && d < CONFIG.AVOID_RADIUS) { const diff = this.position.subtract(other.position).normalize().divide(d); steer = steer.add(diff); } } if (steer.magnitude() > 0) { const desired = steer.normalize().multiply(this.config.maxSpeed); return desired.subtract(this.velocity).limit(CONFIG.MAX_FORCE); } return steer; } }
+    seek(target) { const desired = target.subtract(this.position).normalize().multiply(this.config.maxSpeed); const steer = desired.subtract(this.velocity); const multiplier = this.config.seekForceMultiplier || 1.0; return steer.limit(CONFIG.MAX_FORCE * multiplier); } seekClosest(qtree, range = Infinity) { let closest = null; let minDistance = range; const searchArea = new Rectangle(this.position.x, this.position.y, range, range); const candidates = qtree.query(searchArea); for (const target of candidates) { const d = this.position.subtract(target.position).magnitude(); if (d < minDistance) { minDistance = d; closest = target; } } return closest ? this.seek(closest.position) : new Vector(); } 
+    flee(threats) {
+        let steer = new Vector();
+        for (const threat of threats) {
+            if (threat.alpha <= 0 || (threat.type === 'RAY' && threat.isStealthed)) continue;
+            // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+            // 修正点：脅威のseekRangeではなく、自分自身のfleeRangeを見るように変更
+            // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+            const range = threat.config ? (this.config.fleeRange || CONFIG.VISUAL_RANGE) : CONFIG.CLICK_EFFECT.threatRadius;
+            const diff = this.position.subtract(threat.position);
+            const d = diff.magnitude();
+            if (d < range) {
+                steer = steer.add(diff.normalize().divide(d));
+            }
+        }
+        if (steer.magnitude() > 0) {
+            return steer.normalize().multiply(this.config.maxSpeed).subtract(this.velocity).limit(CONFIG.MAX_FORCE * 5);
+        }
+        return steer;
+    }
+    calculateAlignment(neighbors) { let sum = new Vector(); let count = 0; for (const other of neighbors) { if (other !== this && other.type === this.type && other.alpha > 0) { sum = sum.add(other.velocity); count++; } } if (count > 0) { const desired = sum.divide(count).normalize().multiply(this.config.maxSpeed); return desired.subtract(this.velocity).limit(CONFIG.MAX_FORCE); } return new Vector(); } calculateCohesion(neighbors) { let sum = new Vector(); let count = 0; for (const other of neighbors) { if (other !== this && other.type === this.type && other.alpha > 0) { sum = sum.add(other.position); count++; } } if (count > 0) { return this.seek(sum.divide(count)); } return new Vector(); } calculateSeparation(neighbors) { let steer = new Vector(); for (const other of neighbors) { if (other === this || other.alpha <= 0) continue; const d = this.position.subtract(other.position).magnitude(); if (d > 0 && d < CONFIG.AVOID_RADIUS) { const diff = this.position.subtract(other.position).normalize().divide(d); steer = steer.add(diff); } } if (steer.magnitude() > 0) { const desired = steer.normalize().multiply(this.config.maxSpeed); return desired.subtract(this.velocity).limit(CONFIG.MAX_FORCE); } return steer; } }
 
 class Predator extends Boid {
     constructor(type, image, x, y, vx, vy, targetPreyType) {
@@ -45,13 +65,13 @@ class Predator extends Boid {
     attemptToEat(prey) { if (!prey || !this.canEat()) return false; const mouthPosition = this.getMouthPosition(); const d = mouthPosition.subtract(prey.position).magnitude(); const angleToPrey = this.velocity.normalize().dot(prey.position.subtract(this.position).normalize()); if (d < this.config.eatRadius && angleToPrey > 0.6) { prey.startDying(); this.resetEatCooldown(prey); return true; } return false; }
     act(qtree, allPrey, allPredators, currentCounts) { if (this.config.isFlocking) { const neighbors = qtree.query(new Rectangle(this.position.x, this.position.y, CONFIG.VISUAL_RANGE, CONFIG.VISUAL_RANGE)); this.flock(neighbors); } if (this.isLeaving) { const desired = new Vector(canvas.width / 2, canvas.height / 2).subtract(this.position).normalize().multiply(-this.config.maxSpeed); this.applyForce(desired.subtract(this.velocity).limit(CONFIG.MAX_FORCE)); return; } const targetCount = currentCounts[this.targetPreyType] || 0; const initialCount = flock.initialCounts[this.targetPreyType] || 0; if ((targetCount < initialCount + CONFIG.PREDATOR_LEAVE_COUNT || this.lifespan <= 0) && this.type !== 'WHALE') { this.isLeaving = true; return; }
         if (!this.currentTarget || this.currentTarget.alpha <= 0 || this.currentTarget.isDying) {
-            this.currentTarget = this.findBestPrey(allPrey, allPredators, currentCounts);
+            this.currentTarget = this.findBestPrey(allPrey, allPredators, currentCounts, qtree);
         }
         if (this.currentTarget && !this.attemptToEat(this.currentTarget)) { this.applyForce(this.seek(this.currentTarget.position)); }
         else if (!this.currentTarget) { const wander = new Vector((Math.random() - 0.5) * (this.config.wanderForce || 0.1), (Math.random() - 0.5) * (this.config.wanderForce || 0.1)); this.applyForce(wander); }
     }
     getMouthPosition() { if (this.velocity.magnitude() === 0) return this.position; const dir = this.velocity.normalize(); const offsetConf = this.config.mouthOffset; if (typeof offsetConf === 'object' && offsetConf !== null) { const perpendicular = new Vector(dir.y, -dir.x); const offsetX = this.config.width * offsetConf.x; const offsetY = this.config.height * offsetConf.y; return this.position.add(dir.multiply(offsetX)).add(perpendicular.multiply(offsetY)); } else { return this.position.add(dir.multiply(this.config.width * offsetConf)); } }
-    findBestPrey(preyList, allPredators, currentCounts) {
+    findBestPrey(preyList, allPredators, currentCounts, qtree) {
         const seekRange = this.isOffScreen() ? 9999 * 2 : this.config.seekRange;
         const availablePrey = preyList.filter(p => p.alpha > 0 && !p.isDying && this.config.eats.includes(p.type) && this.position.subtract(p.position).magnitude() < seekRange);
         if (availablePrey.length === 0) return null;
@@ -62,6 +82,14 @@ class Predator extends Boid {
 
             if (this.type === 'RAY') { score -= distance * 1.5; } 
             else { score -= distance * (CONFIG.PREDATOR_DISTANCE_WEIGHT || 0.1); }
+            
+            if (this.type === 'MARLIN') { 
+                const densityRadius = CONFIG.DENSITY_CHECK_RADIUS || 100;
+                const densityArea = new Rectangle(p.position.x, p.position.y, densityRadius, densityRadius);
+                const nearbyFish = qtree.query(densityArea);
+                const density = nearbyFish.length;
+                score += density * (CONFIG.PREDATOR_DENSITY_WEIGHT || 2.5);
+            }
             
             const populationBonus = Math.max(0, (currentCounts[p.type] || 0) - (flock.initialCounts[p.type] || 0));
             score += populationBonus * (CONFIG.PREDATOR_POPULATION_SCORE_WEIGHT || 2.0);

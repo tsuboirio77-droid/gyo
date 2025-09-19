@@ -13,13 +13,18 @@ let loadedImages;
 const clockContainer = document.getElementById('clock-container');
 const dateDisplay = document.getElementById('date-display');
 const timeDisplay = document.getElementById('time-display');
+const analogClockCanvas = document.getElementById('analog-clock-canvas');
+const analogCtx = analogClockCanvas.getContext('2d');
+
+const analogDateDisplay = document.getElementById('analog-date-display');
+
 let currentFontIndex = 0;
 
-// ★フォントごとのスタイルに「日付の右側の余白」を追加
 const fontStyles = [
-    { name: 'CuteFont',     containerBottom: '-20px', dateMarginBottom: '-40px', dateSize: '28px', timeSize: '120px', dateLetterSpacing: '1px', timeLetterSpacing: '4px', datePaddingRight: '7px' },
-    { name: 'BigShoulders', containerBottom: '7px', dateMarginBottom: '0px', dateSize: '25px', timeSize: '90px', dateLetterSpacing: '2px', timeLetterSpacing: '7px', datePaddingRight: '10px' },
-    { name: 'AveriaSerif',  containerBottom: '5px', dateMarginBottom: '-15px', dateSize: '20px', timeSize: '90px', dateLetterSpacing: '1.5px', timeLetterSpacing: '4px', datePaddingRight: '10px' }
+    { name: 'CuteFont',     type: 'digital', containerBottom: '-20px', dateMarginBottom: '-40px', dateSize: '28px', timeSize: '120px', dateLetterSpacing: '1px', timeLetterSpacing: '4px', datePaddingRight: '7px' },
+    { name: 'BigShoulders', type: 'digital', containerBottom: '7px', dateMarginBottom: '0px', dateSize: '25px', timeSize: '90px', dateLetterSpacing: '2px', timeLetterSpacing: '7px', datePaddingRight: '10px' },
+    { name: 'AveriaSerif',  type: 'digital', containerBottom: '5px', dateMarginBottom: '-15px', dateSize: '20px', timeSize: '90px', dateLetterSpacing: '1.5px', timeLetterSpacing: '4px', datePaddingRight: '10px' },
+    { name: 'Analog',       type: 'analog',  containerBottom: '0px' }
 ];
 
 
@@ -45,14 +50,13 @@ function translate(key) {
 
 // ===== CLOCK LOGIC =====
 function updateClock() {
-    if (!dateDisplay || !timeDisplay) return;
+    if (!dateDisplay || !timeDisplay || fontStyles[currentFontIndex].type !== 'digital') return;
 
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
     const date = now.getDate();
     const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
-
     dateDisplay.textContent = `${year}/${month}/${date} ${day}`;
 
     const hours = now.getHours();
@@ -60,21 +64,120 @@ function updateClock() {
     timeDisplay.textContent = `${hours}:${minutes}`;
 }
 
-// ★指定されたスタイルに「日付の右側の余白」の適用を追加
+function drawAnalogClock() {
+    if (!analogCtx || fontStyles[currentFontIndex].type !== 'analog') return;
+
+    const now = new Date();
+    
+    const month = now.getMonth() + 1;
+    const date = now.getDate();
+    const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()];
+    analogDateDisplay.textContent = `${month}/${date} ${day}`;
+
+    const radius = analogClockCanvas.width / 2;
+    analogCtx.clearRect(0, 0, analogClockCanvas.width, analogClockCanvas.height);
+
+    analogCtx.save();
+    analogCtx.translate(radius, radius);
+    
+    analogCtx.strokeStyle = 'rgb(0, 170, 255)';
+
+    const rectHeight = radius * 1.8; 
+    const rectWidth = radius * 1.4; // ★横幅を大きく
+    const hh = rectHeight /2;
+    const hw = rectWidth / 2;
+
+    const markerPositions = [
+        { x: 0,   y: -hh }, { x: hw,  y: -hh }, { x: hw,  y: -hh / 2}, { x: hw,  y: 0 },
+        { x: hw,  y: hh / 2 },{ x: hw,  y: hh }, { x: 0,   y: hh }, { x: -hw, y: hh },
+        { x: -hw, y: hh / 2 },{ x: -hw, y: 0 }, { x: -hw, y: -hh / 2},{ x: -hw, y: -hh }
+    ];
+
+    markerPositions.forEach((pos, i) => {
+        const isHourMarker = i % 3 === 0;
+        const markerLength = radius * (isHourMarker ? 0.2 : 0.1);
+        analogCtx.lineWidth = isHourMarker ? 3 : 2;
+        const p = new Vector(pos.x, pos.y);
+        const normal = p.normalize();
+        const p_outer = p;
+        const p_inner = p.subtract(normal.multiply(markerLength));
+        analogCtx.beginPath();
+        analogCtx.moveTo(p_outer.x, p_outer.y);
+        analogCtx.lineTo(p_inner.x, p_inner.y);
+        analogCtx.stroke();
+    });
+
+    function getAngleForRect(value, totalUnits) {
+        const markerFloat = (value / totalUnits) * 12;
+        const idx1 = Math.floor(markerFloat) % 12;
+        const idx2 = (idx1 + 1) % 12;
+        const fraction = markerFloat - Math.floor(markerFloat);
+        const pos1 = new Vector(markerPositions[idx1].x, markerPositions[idx1].y);
+        const pos2 = new Vector(markerPositions[idx2].x, markerPositions[idx2].y);
+        const targetPos = pos1.multiply(1 - fraction).add(pos2.multiply(fraction));
+        return Math.atan2(targetPos.y, targetPos.x) + Math.PI / 2;
+    }
+
+    const currentHour = (now.getHours() % 12) + now.getMinutes() / 60;
+    const currentMinute = now.getMinutes() + now.getSeconds() / 60;
+    const currentSecond = now.getSeconds();
+
+    const hourAngle = getAngleForRect(currentHour, 12);
+    const minAngle = getAngleForRect(currentMinute, 60);
+    const secAngle = getAngleForRect(currentSecond, 60);
+
+    function drawHand(ctx, pos, length, width, color) {
+        ctx.beginPath();
+        ctx.lineWidth = width;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = color;
+        ctx.moveTo(0,0);
+        ctx.rotate(pos);
+        ctx.lineTo(0, -length);
+        ctx.stroke();
+        ctx.rotate(-pos);
+    }
+    
+    drawHand(analogCtx, hourAngle, radius * 0.35, 5, 'rgb(0, 170, 255)');
+    drawHand(analogCtx, minAngle, radius * 0.55, 3, 'rgb(0, 170, 255)');
+    drawHand(analogCtx, secAngle, radius * 0.6, 1.5, 'rgb(255, 0, 0)');
+
+    analogCtx.restore();
+}
+
 function applyClockStyle(style) {
     if (clockContainer) {
-        clockContainer.style.fontFamily = `'${style.name}', sans-serif`;
         clockContainer.style.bottom = style.containerBottom;
     }
-    if (dateDisplay) {
-        dateDisplay.style.marginBottom = style.dateMarginBottom;
-        dateDisplay.style.fontSize = style.dateSize;
-        dateDisplay.style.letterSpacing = style.dateLetterSpacing;
-        dateDisplay.style.paddingRight = style.datePaddingRight; // ★追加
-    }
-    if (timeDisplay) {
-        timeDisplay.style.fontSize = style.timeSize;
-        timeDisplay.style.letterSpacing = style.timeLetterSpacing;
+
+    if (style.type === 'analog') {
+        dateDisplay.style.display = 'none';
+        timeDisplay.style.display = 'none';
+        analogClockCanvas.style.display = 'block';
+        analogDateDisplay.style.display = 'block';
+        clockContainer.classList.add('analog-mode-alignment');
+        const size = 150;
+        analogClockCanvas.width = size;
+        analogClockCanvas.height = size;
+        clockContainer.style.opacity = '0.2';
+    } else {
+        dateDisplay.style.display = 'block';
+        timeDisplay.style.display = 'block';
+        analogClockCanvas.style.display = 'none';
+        analogDateDisplay.style.display = 'none';
+        clockContainer.classList.remove('analog-mode-alignment');
+        clockContainer.style.opacity = '0.2';
+        clockContainer.style.fontFamily = `'${style.name}', sans-serif`;
+        if (dateDisplay) {
+            dateDisplay.style.marginBottom = style.dateMarginBottom;
+            dateDisplay.style.fontSize = style.dateSize;
+            dateDisplay.style.letterSpacing = style.dateLetterSpacing;
+            dateDisplay.style.paddingRight = style.datePaddingRight;
+        }
+        if (timeDisplay) {
+            timeDisplay.style.fontSize = style.timeSize;
+            timeDisplay.style.letterSpacing = style.timeLetterSpacing;
+        }
     }
 }
 
@@ -94,7 +197,12 @@ function animate(currentTime) {
         flock.draw();
     }
     
-    updateClock();
+    const currentStyle = fontStyles[currentFontIndex];
+    if (currentStyle.type === 'analog') {
+        drawAnalogClock();
+    } else {
+        updateClock();
+    }
 
     animationId = requestAnimationFrame(animate);
 }
