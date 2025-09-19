@@ -12,11 +12,18 @@ class Boid {
         this.acceleration = new Vector();
         this.image = image;
 
-        // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正点 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
-        const scale = CONFIG.DEVICE_SCALES[DEVICE_TYPE] || 1.0;
-        this.width = this.config.width * scale;
-        this.height = this.config.height * scale;
-        // ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正点 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
+        // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正ブロック ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
+        const scale = CONFIG.DEVICE_SCALES[DEVICE_TYPE] || CONFIG.DEVICE_SCALES.DESKTOP;
+        this.width = this.config.width * scale.sizeModifier;
+        this.height = this.config.height * scale.sizeModifier;
+        
+        // オブジェクトの構造を統一するため、fleeRangeプロパティを必ず初期化する
+        if (this.config.fleeRange) {
+            this.fleeRange = this.config.fleeRange * scale.rangeModifier;
+        } else {
+            this.fleeRange = null; // 使わない場合はnullで初期化
+        }
+        // ★▲▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正ブロック ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
 
         this.alpha = 1;
         this.isDying = false;
@@ -55,12 +62,8 @@ class Boid {
         if (this.isDying) { if (Math.floor(this.dyingTimer) % 4 < 2) { ctx.restore(); return; } ctx.filter = 'brightness(1.5) drop-shadow(0 0 8px #ff0000)'; const scale = this.dyingTimer / this.maxDyingTime; ctx.scale(scale, scale); }
         else if (this.isStunned) { if (Math.floor(this.stunTimer / 4) % 2 === 0) { ctx.filter = 'brightness(2.5) drop-shadow(0 0 20px #ff0)'; } }
         else if (this.isGlowing) { const color = this.glowColor || "255,255,170"; ctx.filter = `brightness(1.8) drop-shadow(0 0 10px rgba(${color}, 0.8))`; }
-        
-        // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正点 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
         const w = this.width;
         const h = this.height;
-        // ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正点 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
-
         ctx.globalAlpha = (this.isStealthed) ? 0.3 : 0.85;
         ctx.drawImage(this.image, -w / 2, -h / 2, w, h);
         ctx.filter = 'none';
@@ -74,10 +77,7 @@ class Boid {
         let steer = new Vector();
         for (const threat of threats) {
             if (threat.alpha <= 0 || (threat.type === 'RAY' && threat.isStealthed)) continue;
-            // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-            // 修正点：脅威のseekRangeではなく、自分自身のfleeRangeを見るように変更
-            // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-            const range = threat.config ? (this.config.fleeRange || CONFIG.VISUAL_RANGE) : CONFIG.CLICK_EFFECT.threatRadius;
+            const range = threat.config ? (this.fleeRange || CONFIG.VISUAL_RANGE) : CONFIG.CLICK_EFFECT.threatRadius;
             const diff = this.position.subtract(threat.position);
             const d = diff.magnitude();
             if (d < range) {
@@ -101,6 +101,14 @@ class Predator extends Boid {
         this.isLeaving = false;
         this.targetPreyType = targetPreyType;
         this.currentTarget = null;
+        
+        // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 追加 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
+        // 捕食者の索敵範囲もスケーリングする
+        if (this.config.seekRange) {
+            const scale = CONFIG.DEVICE_SCALES[DEVICE_TYPE] || CONFIG.DEVICE_SCALES.DESKTOP;
+            this.seekRange = this.config.seekRange * scale.rangeModifier;
+        }
+        // ★▲▲▲▲▲▲▲▲▲▲▲▲▲▲ 追加 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
     }
     isOffScreen() {
         const margin = CONFIG.REPOSITION_MARGIN || 10;
@@ -121,19 +129,17 @@ class Predator extends Boid {
         const offsetConf = this.config.mouthOffset;
         if (typeof offsetConf === 'object' && offsetConf !== null) {
             const perpendicular = new Vector(dir.y, -dir.x);
-            // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正点 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
             const offsetX = this.width * offsetConf.x;
             const offsetY = this.height * offsetConf.y;
-            // ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正点 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
             return this.position.add(dir.multiply(offsetX)).add(perpendicular.multiply(offsetY));
         } else {
-            // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正点 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
             return this.position.add(dir.multiply(this.width * offsetConf));
-            // ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正点 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
         }
     }
     findBestPrey(preyList, allPredators, currentCounts, qtree) {
-        const seekRange = this.isOffScreen() ? 9999 * 2 : this.config.seekRange;
+        // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正点 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
+        const seekRange = this.isOffScreen() ? 9999 * 2 : (this.seekRange || this.config.seekRange);
+        // ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正点 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
         const availablePrey = preyList.filter(p => p.alpha > 0 && !p.isDying && this.config.eats.includes(p.type) && this.position.subtract(p.position).magnitude() < seekRange);
         if (availablePrey.length === 0) return null;
 

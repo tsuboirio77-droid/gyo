@@ -1,5 +1,36 @@
 // FILE: effect_entities.js
-class Plankton { constructor(x, y) { const margin = 50; const width = canvas.width - margin * 2; const height = canvas.height - margin * 2; this.position = new Vector(Math.random() * width + margin, Math.random() * height + margin); this.size = 0; this.maxSize = CONFIG.PLANKTON_SIZE; this.wanderAngle = Math.random() * Math.PI * 2; } update(deltaTime) { if (this.size < this.maxSize) this.size += CONFIG.PLANKTON_GROWTH_RATE; this.wanderAngle += (Math.random() - 0.5) * CONFIG.PLANKTON_WANDER_STRENGTH; this.position.x += Math.cos(this.wanderAngle) * 0.1; this.position.y += Math.sin(this.wanderAngle) * 0.1; if (this.position.x < 0) this.position.x = 0; if (this.position.x > canvas.width) this.position.x = canvas.width; if (this.position.y < 0) this.position.y = 0; if (this.position.y > canvas.height) this.position.y = canvas.height; } draw() { ctx.fillStyle = CONFIG.PLANKTON_COLOR; ctx.beginPath(); ctx.arc(this.position.x, this.position.y, this.size, 0, Math.PI * 2); ctx.fill(); } }
+class Plankton {
+    constructor(x, y) {
+        const margin = 50;
+        const width = canvas.width - margin * 2;
+        const height = canvas.height - margin * 2;
+        this.position = new Vector(Math.random() * width + margin, Math.random() * height + margin);
+        this.size = 0;
+        
+        // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正点 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
+        const scale = CONFIG.DEVICE_SCALES[DEVICE_TYPE] || CONFIG.DEVICE_SCALES.DESKTOP;
+        this.maxSize = CONFIG.PLANKTON_SIZE * scale.sizeModifier;
+        // ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正点 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
+
+        this.wanderAngle = Math.random() * Math.PI * 2;
+    }
+    update(deltaTime) {
+        if (this.size < this.maxSize) this.size += CONFIG.PLANKTON_GROWTH_RATE;
+        this.wanderAngle += (Math.random() - 0.5) * CONFIG.PLANKTON_WANDER_STRENGTH;
+        this.position.x += Math.cos(this.wanderAngle) * 0.1;
+        this.position.y += Math.sin(this.wanderAngle) * 0.1;
+        if (this.position.x < 0) this.position.x = 0;
+        if (this.position.x > canvas.width) this.position.x = canvas.width;
+        if (this.position.y < 0) this.position.y = 0;
+        if (this.position.y > canvas.height) this.position.y = canvas.height;
+    }
+    draw() {
+        ctx.fillStyle = CONFIG.PLANKTON_COLOR;
+        ctx.beginPath();
+        ctx.arc(this.position.x, this.position.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
 class SpawnEffect {
     constructor(position, color, side) {
         this.position = position;

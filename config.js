@@ -31,13 +31,14 @@ const CONFIG = {
   "PLANKTON_GROWTH_RATE": 0.01,
   "WALL_AVOID_DISTANCE": 1,
   "WALL_AVOID_FORCE": 0.2,
-  // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 追加 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
+  // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正ブロック ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
+  // 設定をより柔軟にするため構造を変更
   "DEVICE_SCALES": {
-      "DESKTOP": 1.0,
-      "TABLET": 0.5,
-      "MOBILE": 0.3
+    "DESKTOP": { "sizeModifier": 1.0, "rangeModifier": 1.0 },
+    "TABLET":  { "sizeModifier": 0.8, "rangeModifier": 0.9 },
+    "MOBILE":  { "sizeModifier": 0.6, "rangeModifier": 0.8 }
   },
-  // ★▲▲▲▲▲▲▲▲▲▲▲▲▲▲ 追加 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
+  // ★▲▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正ブロック ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
   "FISH_TYPES": {
     "SARDINE": { "count": 80, "maxSpeed": 1.5, "separationWeight": 2, "alignmentWeight": 1, "cohesionWeight": 1, "width": 16, "height": 8, "eatRadius": 5, "reproductionCost": 12, "planktonSeekRange": 100, "spawnColor": "255, 100, 0", "fleeForceMultiplier": 2.5, "fleeRange": 260 },
     "MACKEREL": { "count": 50, "maxSpeed": 1.5, "separationWeight": 3, "alignmentWeight": 1.5, "cohesionWeight": 1.2, "width": 24, "height": 12, "eatRadius": 8, "reproductionCost": 20, "planktonSeekRange": 100, "spawnColor": "0, 150, 255", "fleeForceMultiplier": 2.5, "fleeRange": 260 },
