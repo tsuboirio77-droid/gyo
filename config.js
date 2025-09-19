@@ -34,8 +34,8 @@ const CONFIG = {
   // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 追加 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
   "DEVICE_SCALES": {
       "DESKTOP": 1.0,
-      "TABLET": 0.8,
-      "MOBILE": 0.6
+      "TABLET": 0.5,
+      "MOBILE": 0.3
   },
   // ★▲▲▲▲▲▲▲▲▲▲▲▲▲▲ 追加 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
   "FISH_TYPES": {
