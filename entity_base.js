@@ -12,18 +12,15 @@ class Boid {
         this.acceleration = new Vector();
         this.image = image;
 
-        // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正ブロック ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
         const scale = CONFIG.DEVICE_SCALES[DEVICE_TYPE] || CONFIG.DEVICE_SCALES.DESKTOP;
         this.width = this.config.width * scale.sizeModifier;
         this.height = this.config.height * scale.sizeModifier;
         
-        // オブジェクトの構造を統一するため、fleeRangeプロパティを必ず初期化する
         if (this.config.fleeRange) {
             this.fleeRange = this.config.fleeRange * scale.rangeModifier;
         } else {
-            this.fleeRange = null; // 使わない場合はnullで初期化
+            this.fleeRange = null; 
         }
-        // ★▲▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正ブロック ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
 
         this.alpha = 1;
         this.isDying = false;
@@ -40,7 +37,40 @@ class Boid {
     stun(duration) { this.isStunned = true; this.stunTimer = duration; }
     applyForce(force) { this.acceleration = this.acceleration.add(force); }
     updateTimers(deltaTime) { if (this.isDying) { this.dyingTimer -= deltaTime; if (this.dyingTimer <= 0) this.alpha = 0; return false; } if (this.isStunned) { this.stunTimer -= deltaTime; if (this.stunTimer <= 0) this.isStunned = false; } if (this.isGlowing) { this.glowingTimer = Math.max(0, this.glowingTimer - deltaTime); if (this.glowingTimer <= 0) this.isGlowing = false; } if (this.eatCooldownTimer > 0) { this.eatCooldownTimer = Math.max(0, this.eatCooldownTimer - deltaTime); } return true; }
-    act(qtree, predators, planktonQtree, clickThreats) { if (this.isStunned) { this.acceleration = this.velocity.multiply(-0.1); const sway = new Vector(this.velocity.y, -this.velocity.x).normalize().multiply(0.2); this.applyForce(sway.multiply(Math.sin(this.stunTimer * 0.5))); return; } const allThreats = [...predators, ...clickThreats]; const fleeForce = this.flee(allThreats); const range = new Rectangle(this.position.x, this.position.y, CONFIG.VISUAL_RANGE, CONFIG.VISUAL_RANGE); const neighbors = qtree.query(range); const foodAttraction = this.eatCooldownTimer === 0 ? this.seekClosest(planktonQtree, this.config.planktonSeekRange || 40) : new Vector(); if (fleeForce.magnitude() > 0) { this.applyForce(fleeForce.multiply(this.config.fleeForceMultiplier || 2.5)); } else if (foodAttraction.magnitude() > 0 && this.type === 'BONITO') { const focus = this.config.planktonFocusMultiplier || 0.2; this.applyForce(this.calculateAlignment(neighbors).multiply(this.config.alignmentWeight * focus)); this.applyForce(this.calculateCohesion(neighbors).multiply(this.config.cohesionWeight * focus)); this.applyForce(this.calculateSeparation(neighbors).multiply(this.config.separationWeight)); this.applyForce(foodAttraction.multiply(this.config.planktonSeekMultiplier || 1.0)); } else { this.flock(neighbors); if (this.eatCooldownTimer === 0) { this.applyForce(foodAttraction.multiply(this.config.planktonSeekMultiplier || 1.0)); } } }
+    
+    act(qtree, predators, planktonQtree, clickThreats) {
+        if (this.isStunned) {
+            this.acceleration = this.velocity.multiply(-0.1);
+            const sway = new Vector(this.velocity.y, -this.velocity.x).normalize().multiply(0.2);
+            this.applyForce(sway.multiply(Math.sin(this.stunTimer * 0.5)));
+            return;
+        }
+        
+        const allThreats = [...predators, ...clickThreats];
+        const fleeForce = this.flee(allThreats);
+        
+        if (fleeForce.magnitude() > 0) {
+            this.applyForce(fleeForce.multiply(this.config.fleeForceMultiplier || 2.5));
+        } else {
+            const range = new Rectangle(this.position.x, this.position.y, CONFIG.VISUAL_RANGE, CONFIG.VISUAL_RANGE);
+            const neighbors = qtree.query(range);
+            const foodAttraction = this.eatCooldownTimer === 0 ? this.seekClosest(planktonQtree, this.config.planktonSeekRange || 40) : new Vector();
+            
+            if (foodAttraction.magnitude() > 0 && this.type === 'BONITO') {
+                const focus = this.config.planktonFocusMultiplier || 0.2;
+                this.applyForce(this.calculateAlignment(neighbors).multiply(this.config.alignmentWeight * focus));
+                this.applyForce(this.calculateCohesion(neighbors).multiply(this.config.cohesionWeight * focus));
+                this.applyForce(this.calculateSeparation(neighbors).multiply(this.config.separationWeight));
+                this.applyForce(foodAttraction.multiply(this.config.planktonSeekMultiplier || 1.0));
+            } else {
+                this.flock(neighbors);
+                if (this.eatCooldownTimer === 0) {
+                    this.applyForce(foodAttraction.multiply(this.config.planktonSeekMultiplier || 1.0));
+                }
+            }
+        }
+    }
+
     flock(neighbors) { this.applyForce(this.calculateAlignment(neighbors).multiply(this.config.alignmentWeight)); this.applyForce(this.calculateCohesion(neighbors).multiply(this.config.cohesionWeight)); this.applyForce(this.calculateSeparation(neighbors).multiply(this.config.separationWeight)); }
     update(deltaTime, speedLimit) { if (!this.updateTimers(deltaTime)) return; const limit = speedLimit !== undefined ? speedLimit : this.config.maxSpeed; this.velocity = this.velocity.add(this.acceleration.multiply(deltaTime)); if (this.isStunned) { this.velocity = this.velocity.limit(limit * 0.5); } else { this.velocity = this.velocity.limit(limit); } this.position = this.position.add(this.velocity.multiply(deltaTime)); this.acceleration = new Vector(); this.applyForce(this.avoidWalls()); this.handleBoundaries(); }
     handleBoundaries() { if (this.position.x < 0) { this.position.x = 0; this.velocity.x *= -1; } if (this.position.x > canvas.width) { this.position.x = canvas.width; this.velocity.x *= -1; } if (this.position.y < 0) { this.position.y = 0; this.velocity.y *= -1; } if (this.position.y > canvas.height) { this.position.y = canvas.height; this.velocity.y *= -1; } }
@@ -73,6 +103,7 @@ class Boid {
     drawEffects(ctx) { }
     seek(target) { const desired = target.subtract(this.position).normalize().multiply(this.config.maxSpeed); const steer = desired.subtract(this.velocity); const multiplier = this.config.seekForceMultiplier || 1.0; return steer.limit(CONFIG.MAX_FORCE * multiplier); }
     seekClosest(qtree, range = Infinity) { let closest = null; let minDistance = range; const searchArea = new Rectangle(this.position.x, this.position.y, range, range); const candidates = qtree.query(searchArea); for (const target of candidates) { const d = this.position.subtract(target.position).magnitude(); if (d < minDistance) { minDistance = d; closest = target; } } return closest ? this.seek(closest.position) : new Vector(); }
+    
     flee(threats) {
         let steer = new Vector();
         for (const threat of threats) {
@@ -81,11 +112,14 @@ class Boid {
             const diff = this.position.subtract(threat.position);
             const d = diff.magnitude();
             if (d < range) {
-                steer = steer.add(diff.normalize().divide(d));
+                const strength = (range - d) / range;
+                const force = diff.normalize().multiply(strength);
+                steer = steer.add(force);
             }
         }
         if (steer.magnitude() > 0) {
-            return steer.normalize().multiply(this.config.maxSpeed).subtract(this.velocity).limit(CONFIG.MAX_FORCE * 5);
+            // .subtract(this.velocity) を削除した、最終的な修正を維持
+            return steer.normalize().multiply(this.config.maxSpeed).limit(CONFIG.MAX_FORCE * 5);
         }
         return steer;
     }
@@ -102,13 +136,10 @@ class Predator extends Boid {
         this.targetPreyType = targetPreyType;
         this.currentTarget = null;
         
-        // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 追加 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
-        // 捕食者の索敵範囲もスケーリングする
         if (this.config.seekRange) {
             const scale = CONFIG.DEVICE_SCALES[DEVICE_TYPE] || CONFIG.DEVICE_SCALES.DESKTOP;
             this.seekRange = this.config.seekRange * scale.rangeModifier;
         }
-        // ★▲▲▲▲▲▲▲▲▲▲▲▲▲▲ 追加 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
     }
     isOffScreen() {
         const margin = CONFIG.REPOSITION_MARGIN || 10;
@@ -137,9 +168,7 @@ class Predator extends Boid {
         }
     }
     findBestPrey(preyList, allPredators, currentCounts, qtree) {
-        // ★▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 修正点 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼★
         const seekRange = this.isOffScreen() ? 9999 * 2 : (this.seekRange || this.config.seekRange);
-        // ★▲▲▲▲▲▲▲▲▲▲▲▲▲ 修正点 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲★
         const availablePrey = preyList.filter(p => p.alpha > 0 && !p.isDying && this.config.eats.includes(p.type) && this.position.subtract(p.position).magnitude() < seekRange);
         if (availablePrey.length === 0) return null;
 

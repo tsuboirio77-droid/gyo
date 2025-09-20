@@ -26,7 +26,7 @@ const CONFIG = {
   "CLICK_EFFECT": { "threatRadius": 200, "threatDuration": 150 },
   "PLANKTON_COUNT": 50,
   "PLANKTON_SIZE": 1.2,
-  "PLANKTON_COLOR": "rgba(255, 255, 255, 0.7)",
+  "PLANKTON_COLOR": "rgba(255, 255, 255, 0.3)",
   "PLANKTON_WANDER_STRENGTH": 0.08,
   "PLANKTON_GROWTH_RATE": 0.01,
   "WALL_AVOID_DISTANCE": 1,

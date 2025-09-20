@@ -128,11 +128,11 @@ class Marlin extends Predator {
             const effectLocalPos = diffFromBoidCenter.rotate(rotationAngle);
             
             ctx.save();
-            ctx.filter = `blur(10px)`;
+            ctx.filter = `blur(30px)`;
             ctx.fillStyle = `rgba(200, 200, 255, ${alpha * 0.8})`;
             ctx.beginPath();
             // effectLocalPos を直接使う
-            ctx.arc(effectLocalPos.x, effectLocalPos.y, 20, 0, Math.PI * 2); 
+            ctx.arc(effectLocalPos.x, effectLocalPos.y, 35, 0, Math.PI * 2); 
             ctx.fill();
             ctx.restore();
         }
